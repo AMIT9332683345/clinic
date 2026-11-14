@@ -14,8 +14,11 @@ if (!MONGODB_URI || !JWT_SECRET) {
 
 const app = express();
 app.set('trust proxy', 1);
-const origins = (process.env.CLIENT_ORIGIN || '*').split(',').map(s => s.trim()).filter(Boolean);
-app.use(cors({ origin: origins.includes('*') ? true : origins }));
+const origins = (process.env.CLIENT_ORIGIN || '*').split(',').map(s => s.trim().replace(/\/+$/, '')).filter(Boolean);
+// Vercel creates a new hostname for every deployment, so accept the project's vercel.app
+// sites and local development without needing an env update for each deploy.
+const originOk = o => !o || origins.includes('*') || origins.includes(o) || /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(o) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o);
+app.use(cors({ origin: (o, cb) => cb(null, originOk(o)) }));
 app.use(express.json({ limit: '100kb' }));
 
 class HttpError extends Error { constructor(status, msg) { super(msg); this.status = status; } }

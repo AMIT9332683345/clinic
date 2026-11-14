@@ -28,6 +28,9 @@ clinic-queue-app/
    | `JWT_SECRET` | any long random string |
    | `CLIENT_ORIGIN` | your Vercel URL, e.g. `https://my-clinic.vercel.app` (comma-separate several) |
    | `CLINIC_TZ` | `Asia/Kolkata` |
+
+   The API also accepts every `https://*.vercel.app` origin and `http://localhost:*`, so new
+   Vercel preview/production hostnames work without editing `CLIENT_ORIGIN` after each deploy.
 5. Deploy, then open `https://<your-service>.onrender.com/health` — it should return `{"ok":true}`.
 
 ## 3. Frontend on Vercel
@@ -35,11 +38,14 @@ clinic-queue-app/
    The root `vercel.json` publishes `frontend/` as a static site — no build step, no framework.
    Manual equivalent: Root Directory `frontend` · Framework Preset `Other` ·
    Build Command empty · Output Directory `.`.
-2. Open the deployed URL. It shows **Connect your backend** — paste the Render URL
-   (`https://<your-service>.onrender.com`). It is saved on that device.
-   To set it for every visitor, put the same URL in `frontend/config.js` as `API_URL` and redeploy.
-   You can also open `https://your-app.vercel.app/?api=https://<your-service>.onrender.com` once.
-3. Go back to Render and set `CLIENT_ORIGIN` to the final Vercel URL, otherwise the browser blocks API calls.
+2. `frontend/config.js` already points at the deployed backend (`API_URL`). Change that value if you
+   deploy the API somewhere else, then redeploy. You can also open
+   `https://your-app.vercel.app/?api=https://<your-service>.onrender.com` once to override it on
+   a single device.
+3. Turn **Deployment Protection** off (project → Settings → Deployment Protection → Vercel
+   Authentication → **Disabled**), otherwise visitors get a Vercel login page instead of the app.
+4. Use the stable production domain Vercel shows under **Domains** (e.g. `my-clinic.vercel.app`).
+   Per-deployment URLs (`…-<hash>-….vercel.app`) change on every push.
 
 > If Vercel still shows `FUNCTION_INVOCATION_FAILED` or a 500, the project's **Root Directory**
 > is not the repo root: set it to `.` (or `frontend`), or delete the project and import it again.

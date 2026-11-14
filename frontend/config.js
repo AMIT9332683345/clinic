@@ -1,5 +1,5 @@
-// Backend API URL.
-// Local development: leave empty — the app calls http://localhost:5000 automatically.
-// Deployed: set your Render service URL here (no trailing slash), or open the site
-// once with ?api=https://your-api.onrender.com and it is remembered on that device.
-window.CONFIG = { API_URL: "" };
+// Backend API URL for the deployed app.
+// Local development ignores this and calls http://localhost:5000 automatically.
+// Change this if you deploy the backend somewhere other than Render, or open the
+// site once with ?api=https://your-api.example.com to override it on one device.
+window.CONFIG = { API_URL: "https://clinic-7teh.onrender.com" };

@@ -6,7 +6,8 @@ const store = (k, v) => { try { v == null ? localStorage.removeItem(k) : localSt
 const isLocal = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 const apiParam = new URLSearchParams(location.search).get('api');
 if (apiParam) store('cq_api', apiParam);
-const API = ((read('cq_api') || (window.CONFIG && window.CONFIG.API_URL) || (isLocal ? 'http://localhost:5000' : '')) || '').trim().replace(/\/+$/, '');
+const pick = v => String(v || '').trim().replace(/\/+$/, '');
+const API = pick(apiParam) || (isLocal ? (pick(read('cq_api')) || 'http://localhost:5000') : (pick(window.CONFIG && window.CONFIG.API_URL) || pick(read('cq_api'))));
 const API_BAD = !API || API === location.origin || (/localhost|127\.0\.0\.1/.test(API) && !isLocal) || /YOUR-BACKEND-NAME/.test(API);
 let auth = null; try { auth = JSON.parse(read('cq_auth')); } catch (e) {}
 let info = null, timer = null, docId = read('cq_doc') || '', deferred = null;
