@@ -1,10 +1,13 @@
 (() => {
-const API = ((window.CONFIG && window.CONFIG.API_URL) || '').trim().replace(/\/+$/, '');
-const API_BAD = !API || API === location.origin || (/localhost|127\.0\.0\.1/.test(API) && !/localhost|127\.0\.0\.1/.test(location.hostname)) || /YOUR-BACKEND-NAME/.test(API);
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const read = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
 const store = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} };
+const isLocal = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+const apiParam = new URLSearchParams(location.search).get('api');
+if (apiParam) store('cq_api', apiParam);
+const API = ((read('cq_api') || (window.CONFIG && window.CONFIG.API_URL) || (isLocal ? 'http://localhost:5000' : '')) || '').trim().replace(/\/+$/, '');
+const API_BAD = !API || API === location.origin || (/localhost|127\.0\.0\.1/.test(API) && !isLocal) || /YOUR-BACKEND-NAME/.test(API);
 let auth = null; try { auth = JSON.parse(read('cq_auth')); } catch (e) {}
 let info = null, timer = null, docId = read('cq_doc') || '', deferred = null;
 
@@ -28,7 +31,7 @@ const loading = () => view('<div class="loading">Connecting…</div>');
 function toast(m, bad) { const t = $('#toast'); t.textContent = m; t.className = 'show' + (bad ? ' bad' : ''); clearTimeout(toast.t); toast.t = setTimeout(() => { t.className = ''; }, 3400); }
 
 async function req(p, o = {}) {
-  if (API_BAD) throw new Error('Backend URL is not set. Open frontend/config.js, set API_URL to your Render backend URL (e.g. https://clinic-queue-api.onrender.com), then redeploy.');
+  if (API_BAD) throw new Error('Backend URL is not set.');
   let r;
   try {
     r = await fetch(API + '/api' + p, { method: o.method || 'GET', headers: { 'Content-Type': 'application/json', ...(auth ? { Authorization: 'Bearer ' + auth.token } : {}) }, body: o.body ? JSON.stringify(o.body) : undefined });
@@ -41,6 +44,7 @@ async function req(p, o = {}) {
   return o.text ? r.text() : r.json();
 }
 const api = (p, o) => req(p, o);
+async function loadInfo() { if (!info) info = await api('/public/info'); }
 
 const SL = { waiting: 'Waiting', arrived: 'Arrived', current: 'In consultation', done: 'Completed', noshow: 'No-show', cancelled: 'Cancelled', hold: 'On hold' };
 const pill = s => `<span class="pill ${s}">${SL[s] || s}</span>`;
@@ -181,7 +185,7 @@ async function walkin() {
 }
 
 async function search() {
-  chrome('search');
+  await loadInfo(); chrome('search');
   view('<input id="q" type="search" placeholder="Phone number or name" autofocus><div id="res" style="margin-top:14px"></div>');
   let d; $('#q').oninput = () => { clearTimeout(d); d = setTimeout(async () => {
     try {
@@ -212,8 +216,8 @@ async function next() {
 }
 
 async function history(_, p) {
-  chrome('history'); let phone = p.get('phone') || '';
-  if (!phone && auth.user.role !== 'reception') { try { info = await api('/public/info'); pickDoc(); const s = await api('/doctor/state?doctorId=' + docId); if (s.current) phone = s.current.phone; } catch (e) {} }
+  await loadInfo(); chrome('history'); let phone = p.get('phone') || '';
+  if (!phone && auth.user.role !== 'reception') { try { pickDoc(); const s = await api('/doctor/state?doctorId=' + docId); if (s.current) phone = s.current.phone; } catch (e) {} }
   view(`<div class="bar"><input id="ph" class="grow" type="tel" inputmode="numeric" placeholder="Patient phone number" value="${esc(phone)}"><button class="btn sm" id="go">Show</button></div><div id="tl"></div>`);
   const show = async () => {
     const ph = $('#ph').value.replace(/\D/g, '').slice(-10);
@@ -227,7 +231,7 @@ async function history(_, p) {
 
 /* ---------- owner ---------- */
 async function report() {
-  loading(); chrome('report');
+  loading(); await loadInfo(); chrome('report');
   const r = await api('/reports/summary'), mx = Math.max(1, ...r.week.map(d => d.count));
   const day = d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' });
   view(`<div class="stats"><div class="stat"><span class="mute">Patients</span><b>${r.today.total}</b></div><div class="stat"><span class="mute">Avg wait</span><b>${r.today.avgWaitMin}m</b></div><div class="stat"><span class="mute">No-shows</span><b>${r.today.noShow}</b></div></div>
@@ -242,7 +246,7 @@ async function report() {
 }
 
 async function settings() {
-  loading(); chrome('settings');
+  loading(); await loadInfo(); chrome('settings');
   const [s, u] = await Promise.all([api('/settings'), api('/users')]);
   view(`<div class="card"><div class="row2"><div><b>Online booking</b><div class="mute">Patients can book from their phone</div></div><button class="switch ${s.onlineBooking ? 'on' : ''}" id="sw" aria-label="Toggle online booking"></button></div></div>
   <div class="card"><label class="fl" style="margin-top:0">Clinic name</label><input id="cn" value="${esc(s.clinicName)}">
@@ -276,6 +280,22 @@ async function tv(_, p) {
   await load(); poll(load, 3000);
 }
 
+/* ---------- backend connection ---------- */
+function connectBackend() {
+  chrome('');
+  view(`<div class="card"><h2>Connect your backend</h2>
+  <p class="mute">Paste the Render service URL for this clinic once. It is saved on this device only.</p>
+  <label class="fl">Backend URL</label><input id="apiurl" placeholder="https://your-api.onrender.com" value="${API && !API_BAD ? esc(API) : ''}">
+  <button class="btn" id="apisave">Save and reload</button>
+  <a class="btn ghost" href="#/">Back to home</a></div>`);
+  $('#apisave').onclick = () => {
+    let u = $('#apiurl').value.trim().replace(/\/+$/, '');
+    if (!u) return toast('Enter the backend URL', 1);
+    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+    store('cq_api', u); location.reload();
+  };
+}
+
 /* ---------- router ---------- */
 const routes = { '': home, book, token, queue, login, list, walkin, search, next, history, report, settings, tv };
 function route() {
@@ -285,6 +305,7 @@ function route() {
   const fn = routes[name] || home; window.scrollTo(0, 0);
   if (!(name in routes)) return go('');
   fn(arg, new URLSearchParams(qs || '')).catch(e => {
+    if (API_BAD) return connectBackend();
     view(`<div class="card ctr"><h2>Something went wrong</h2><p class="mute">${esc(e.message)}</p><button class="btn" onclick="location.reload()">Try again</button></div>`);
   });
 }
