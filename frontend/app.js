@@ -33,10 +33,20 @@ function toast(m, bad) { const t = $('#toast'); t.textContent = m; t.className =
 
 async function req(p, o = {}) {
   if (API_BAD) throw new Error('Backend URL is not set.');
+  const idem = (o.method || 'GET') === 'GET';
+  const init = { method: o.method || 'GET', headers: { 'Content-Type': 'application/json', ...(auth ? { Authorization: 'Bearer ' + auth.token } : {}) }, body: o.body ? JSON.stringify(o.body) : undefined };
+  const sleep = ms => new Promise(res => setTimeout(res, ms));
   let r;
-  try {
-    r = await fetch(API + '/api' + p, { method: o.method || 'GET', headers: { 'Content-Type': 'application/json', ...(auth ? { Authorization: 'Bearer ' + auth.token } : {}) }, body: o.body ? JSON.stringify(o.body) : undefined });
-  } catch (e) { throw new Error('Cannot reach the server. If it was idle, wait a few seconds and try again.'); }
+  for (let attempt = 0; ; attempt++) {
+    try { r = await fetch(API + '/api' + p, init); }
+    catch (e) {
+      if (idem && !attempt) { toast('Waking up the clinic server…'); await sleep(4000); continue; }
+      throw new Error('Cannot reach the server. Check your internet, or wait a few seconds and try again.');
+    }
+    // Render free instances answer 502/503 while waking up; retrying a GET is harmless.
+    if (idem && !attempt && (r.status === 502 || r.status === 503 || r.status === 504)) { toast('Waking up the clinic server…'); await sleep(4000); continue; }
+    break;
+  }
   if (!r.ok) {
     let d = {}; try { d = await r.json(); } catch (e) {}
     if (r.status === 401 && auth) { auth = null; store('cq_auth', null); go('login'); }
