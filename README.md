@@ -35,7 +35,27 @@ clinic-queue-app/
 ## 4. Install on Android
 Open the Vercel URL in Chrome → tap **Install app** on the home screen (or menu ⋮ → Add to Home screen).
 
-## 5. First use
+## 5. Demo data (optional)
+Fill an empty database with a working clinic: settings, two doctors, staff accounts,
+today's live queue and the last 7 days of visits.
+
+```
+cd backend && npm run seed
+```
+
+Sign in with mobile + PIN:
+
+| Role | Mobile | PIN |
+|---|---|---|
+| Owner | 9876500001 | 1234 |
+| Reception | 9876500002 | 1234 |
+| Doctor | 9876500003 | 1234 |
+
+The seed only runs on a database with no tokens in the last 7 days. Use
+`npm run seed -- --force` to replace the demo week with fresh data.
+Delete the demo staff accounts (Settings → Staff accounts) before a real clinic starts using the app.
+
+## 6. First use
 - Open the app → **Staff sign in** → it asks you to create the owner account (name, mobile, PIN).
 - Settings: set clinic name, OPD timing, token limit, doctors; add reception and doctor accounts.
 - Share the booking link (`https://your-app.vercel.app/#/book`) on WhatsApp, Instagram or Google Maps.
