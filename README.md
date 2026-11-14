@@ -16,10 +16,11 @@ clinic-queue-app/
 
 ## 2. Backend on Render
 1. Push this folder to GitHub.
-2. Render → New → Web Service → pick the repo.
-   Or use **New → Blueprint** and pick the repo; `render.yaml` already sets the root
-   directory, build command, start command, health check and env vars.
-3. Root Directory: `backend` · Build Command: `npm ci` · Start Command: `npm start`
+2. Render → **New → Blueprint** → pick the repo. `render.yaml` at the root already sets the
+   service name, root directory, build/start commands, health check and timezone.
+   When prompted, enter `MONGODB_URI` and `CLIENT_ORIGIN`; `JWT_SECRET` is generated.
+3. Manual alternative: New → Web Service → Root Directory `backend` ·
+   Build Command `npm ci` · Start Command `npm start`.
 4. Environment variables:
    | Name | Value |
    |---|---|
@@ -30,17 +31,19 @@ clinic-queue-app/
 5. Deploy, then open `https://<your-service>.onrender.com/health` — it should return `{"ok":true}`.
 
 ## 3. Frontend on Vercel
-1. Vercel → Add New Project → same repo → **Root Directory: `frontend`** →
-   Framework Preset: **Other** → Build Command: **empty** → Output Directory: **`.`** → Deploy.
+1. Vercel → Add New Project → import this repo and keep the defaults.
+   The root `vercel.json` publishes `frontend/` as a static site — no build step, no framework.
+   Manual equivalent: Root Directory `frontend` · Framework Preset `Other` ·
+   Build Command empty · Output Directory `.`.
 2. Open the deployed URL. It shows **Connect your backend** — paste the Render URL
    (`https://<your-service>.onrender.com`). It is saved on that device.
    To set it for every visitor, put the same URL in `frontend/config.js` as `API_URL` and redeploy.
    You can also open `https://your-app.vercel.app/?api=https://<your-service>.onrender.com` once.
 3. Go back to Render and set `CLIENT_ORIGIN` to the final Vercel URL, otherwise the browser blocks API calls.
 
-> If Vercel shows `FUNCTION_INVOCATION_FAILED` or a 500, the project is not serving the
-> static frontend: check that Root Directory is `frontend` (not the repo root and not
-> `backend`) and that Framework Preset is `Other`. This folder needs no build step.
+> If Vercel still shows `FUNCTION_INVOCATION_FAILED` or a 500, the project's **Root Directory**
+> is not the repo root: set it to `.` (or `frontend`), or delete the project and import it again.
+> This folder needs no build step; any function/Express preset on the Vercel project must be removed.
 
 ## 4. Install on Android
 Open the Vercel URL in Chrome → tap **Install app** on the home screen (or menu ⋮ → Add to Home screen).
